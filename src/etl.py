@@ -203,24 +203,23 @@ class HmMensJeans:
         df_store = self._product_details[['product_id', 'name', 'price', 'product_color', 'fit', 'size_number', 'size_model',
                             'cotton', 'spandex', 'scrapy_datetime']]
 
-        # Schema
-        query_showroom = '''
-            CREATE TABLE mens_jeans (
-                product_id                 TEXT,
-                name                       TEXT,
-                price                      REAL,
-                product_color              TEXT,
-                fit                        TEXT,
-                size_number                TEXT,
-                size_model                 TEXT,
-                cotton                     REAL,
-                spandex                    REAL,
-                scrapy_datetime            TEXT
-            )
-        '''
-
         # Create a database and table
         if not exists(f'../data/{database}'):
+              # Schema
+            query_showroom = '''
+                CREATE TABLE mens_jeans (
+                    product_id                 TEXT,
+                    name                       TEXT,
+                    price                      REAL,
+                    product_color              TEXT,
+                    fit                        TEXT,
+                    size_number                TEXT,
+                    size_model                 TEXT,
+                    cotton                     REAL,
+                    spandex                    REAL,
+                    scrapy_datetime            TEXT
+                )
+            '''
             self.query_db(query_showroom, 'hm_db.sqlite')
 
         # Connect to database
