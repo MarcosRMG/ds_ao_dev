@@ -1,29 +1,33 @@
-from   sqlalchemy import create_engine
-from   bs4        import BeautifulSoup
-from   datetime   import datetime
-import pandas     as pd
+from sqlalchemy import create_engine
+from bs4        import BeautifulSoup
+from datetime   import datetime
+from os.path    import exists
+from os         import mkdir
+import pandas   as pd
 import requests
 import sqlite3
 import math
 import re
-from os.path import exists
+import logging
 
 
 class HmMensJeans:
     '''
     --> Collect information about men's jeans on H&M page
     '''
-    def __init__(self, url_full_page=None, product_base=pd.DataFrame(), product_details=pd.DataFrame(),
+    def __init__(self, url_full_page=None, product_base=pd.DataFrame(), product_details=pd.DataFrame(), database='hm_db.sqlite',
                 header={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36'}):
         '''
         :param url_full_page: URL with full product section page
         :param product_base: Basic information about product top page
         :param product_details: DataFrame with product information at composition level
+        :param database: Sqlite database to store data
         :param header: Header to acess web page
         '''
         self._url_full_page = url_full_page
         self._product_base = product_base
         self._product_details = product_details
+        self._database = database
         self._header=header
 
 
@@ -37,7 +41,7 @@ class HmMensJeans:
         page = requests.get(url, headers=self._header)
 
         # BeautifulSoup html page
-        soup = BeautifulSoup(page.text, 'html.parser')
+        soup = BeautifulSoup(page.text, features='html.parser')
 
         # Get total products 
         show_items = int(soup.find('h2', class_ = 'load-more-heading').get('data-items-shown'))
@@ -46,6 +50,7 @@ class HmMensJeans:
 
         # Final URL
         self._url_full_page = url + '?page-size=' + str(page_number * show_items)
+        self.loggin('info', 'URL full page done')
 
     
     def product_base(self):
@@ -56,7 +61,7 @@ class HmMensJeans:
         page = requests.get(self._url_full_page, headers=self._header)
 
         # BeautifulSoup html page
-        soup = BeautifulSoup(page.text, 'html.parser')
+        soup = BeautifulSoup(page.text, features='html.parser')
 
         # BeautifulSoup html products content
         products = soup.find('ul', class_="products-listing small")
@@ -65,6 +70,9 @@ class HmMensJeans:
         # product id
         product_id = [p.get('data-articlecode') for p in product_list]
         self._product_base['product_id'] = product_id
+
+        # Loggin
+        self.loggin('info', 'Product base collecting done')
 
 
     def product_details(self):
@@ -76,10 +84,15 @@ class HmMensJeans:
         for code in self._product_base['product_id'][:5]:
             # URL composition and request
             url = f"https://www2.hm.com/en_us/productpage.{code}.html"
+
+            # Debug information of last product
+            self.loggin('debug', f'Product: {url}')
+
+            #-----------------------------Page requests----------------------------
             page = requests.get(url, headers=self._header).text
             
             #-----------------------------BeautifulSoup Object---------------------
-            soup = BeautifulSoup(page)
+            soup = BeautifulSoup(page, features='html.parser')
             
             #-----------------------------Product Color and Code-------------------
 
@@ -93,8 +106,13 @@ class HmMensJeans:
             # Get composition information
             for code in df_color['product_id']:
                 url = (f"https://www2.hm.com/en_us/productpage.{code}.html")
+
+                #----------------------------Debbug message--------------------------
+                self.loggin('debug', f'Collor: {url}')
+            
+                #----------------------------Request and soup object------------------
                 page = requests.get(url, headers=self._header).text
-                soup = BeautifulSoup(page)
+                soup = BeautifulSoup(page, features='html.parser')
                     
                 #-----------------------------Product name-----------------------------
                 product_name = soup.find('h1', class_ = 'primary product-item-headline').get_text()
@@ -134,6 +152,9 @@ class HmMensJeans:
                 self._product_details = pd.concat([self._product_details, df_sku], axis=0).reset_index(drop=True)
                 self._product_details.drop_duplicates(inplace=True)
         self._product_details['scrapy_datetime'] = datetime.now().strftime('%Y-%m-%d')
+
+        # Event logging
+        self.loggin('info', 'Data collection product details done')
 
 
     def data_cleaning(self):
@@ -179,21 +200,24 @@ class HmMensJeans:
         #Drop orinial composition and size columns
         self._product_details.drop(columns=['composition', 'size'], inplace=True)
 
+        # Event loggin
+        self.loggin('info', 'Data cleaning done')
+
     
-    def query_db(self, query, database='hm_db.sqlite'):
+    def query_db(self, query):
         '''
         --> Do a database query
         
         :param query: SQL command to be executed
         :param database: Database to manipulate
         '''
-        conn = sqlite3.connect(database)
+        conn = sqlite3.connect(f'sqlite:///../data/{self._database}')
         cursor = conn.execute(query)
         conn.commit()
         conn.close()
 
     
-    def database(self, database='hm_db.sqlite'):
+    def database(self):
         '''
         --> Store informaiton on sqlite
 
@@ -203,8 +227,12 @@ class HmMensJeans:
         df_store = self._product_details[['product_id', 'name', 'price', 'product_color', 'fit', 'size_number', 'size_model',
                             'cotton', 'spandex', 'scrapy_datetime']]
 
+        # Connect to database
+        db = create_engine(f'sqlite:///../data/{self._database}', echo=False)
+        conn = db.connect()
+
         # Create a database and table
-        if not exists(f'../data/{database}'):
+        if not exists(f'../data/{self._database}'):
               # Schema
             query_showroom = '''
                 CREATE TABLE mens_jeans (
@@ -220,11 +248,46 @@ class HmMensJeans:
                     scrapy_datetime            TEXT
                 )
             '''
-            self.query_db(query_showroom, 'hm_db.sqlite')
-
-        # Connect to database
-        db = create_engine(f'sqlite:///../data/{database}', echo=False)
-        conn = db.connect()
+            self.query_db(query_showroom)
 
         # Data insert
         df_store.to_sql(name='means_jeans', con=conn, if_exists='append', index=False)
+
+        # Loggin
+        self.loggin('info', 'Data storing done')
+
+
+    def loggin(self, path='/home/marcos/Documents/ds_ao_dev/logs', severity_level=str, message=str):
+        '''
+        --> Register the event about system operations
+
+        :param severity_level: Define the level of severity log
+            info      - Status execution
+            debug     - Useful information to debbug system
+            warning   - Alert about system performance
+            error     - Ocurence of execution not working
+            critical  - Compromised system integrity
+        :param message: The text to be loggin
+        '''
+        if not exists(path):
+            mkdir(path)
+
+        logging.basicConfig(
+            filename = path + '/webscraping_hm.log',
+            level    = logging.DEBUG,
+            format   = '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+            datefmt  = '%Y-%m-%d %H:%M:%S'  
+        )
+
+        logger = logging.getLogger('webscraping_hm')
+
+        if severity_level == 'info':
+            logger.info(message)
+        elif severity_level == 'debug':
+            logger.debug(message)
+        elif severity_level == 'warning':
+            logger.debug(message)
+        elif severity_level == 'error':
+            logger.error(message)
+        elif severity_level == 'critical':
+            logger.critical(message)
