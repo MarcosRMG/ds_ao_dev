@@ -15,19 +15,22 @@ class HmMensJeans:
     '''
     --> Collect information about men's jeans on H&M page
     '''
-    def __init__(self, url_full_page=None, product_base=pd.DataFrame(), product_details=pd.DataFrame(), database='hm_db.sqlite',
+    def __init__(self, url_full_page=None, product_base=pd.DataFrame(), product_details=pd.DataFrame(), database='data/hm_db.sqlite', 
+                path='/home/marcos/Documents/ds_ao_dev/',
                 header={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36'}):
         '''
         :param url_full_page: URL with full product section page
         :param product_base: Basic information about product top page
         :param product_details: DataFrame with product information at composition level
         :param database: Sqlite database to store data
+        :param path: The local directory of project
         :param header: Header to acess web page
         '''
         self._url_full_page = url_full_page
         self._product_base = product_base
         self._product_details = product_details
         self._database = database
+        self._path = path
         self._header=header
 
 
@@ -81,7 +84,7 @@ class HmMensJeans:
         '''
         df_pattern = pd.DataFrame(columns=['Art. No.', 'Composition', 'Fit', 'Size'])
 
-        for code in self._product_base['product_id'][:5]:
+        for code in self._product_base['product_id'][:2]:
             # URL composition and request
             url = f"https://www2.hm.com/en_us/productpage.{code}.html"
 
@@ -211,7 +214,7 @@ class HmMensJeans:
         :param query: SQL command to be executed
         :param database: Database to manipulate
         '''
-        conn = sqlite3.connect(f'sqlite:///../data/{self._database}')
+        conn = sqlite3.connect(self._path + self._database)
         cursor = conn.execute(query)
         conn.commit()
         conn.close()
@@ -228,13 +231,13 @@ class HmMensJeans:
                             'cotton', 'spandex', 'scrapy_datetime']]
 
         # Connect to database
-        db = create_engine(f'sqlite:///../data/{self._database}', echo=False)
+        db = create_engine('sqlite:///' + self._path + self._database, echo=False)
         conn = db.connect()
 
         # Create a database and table
-        if not exists(f'../data/{self._database}'):
+        if not exists(self._path + self._database):
               # Schema
-            query_showroom = '''
+            query_showroom = '''    
                 CREATE TABLE mens_jeans (
                     product_id                 TEXT,
                     name                       TEXT,
@@ -257,7 +260,7 @@ class HmMensJeans:
         self.loggin('info', 'Data storing done')
 
 
-    def loggin(self, path='/home/marcos/Documents/ds_ao_dev/logs', severity_level=str, message=str):
+    def loggin(self, severity_level=str, message=str):
         '''
         --> Register the event about system operations
 
@@ -269,11 +272,12 @@ class HmMensJeans:
             critical  - Compromised system integrity
         :param message: The text to be loggin
         '''
-        if not exists(path):
-            mkdir(path)
+        log_path = self._path + 'logs'
+        if not exists(log_path):
+            mkdir(log_path)
 
         logging.basicConfig(
-            filename = path + '/webscraping_hm.log',
+            filename = log_path + '/webscraping_hm.log',
             level    = logging.DEBUG,
             format   = '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
             datefmt  = '%Y-%m-%d %H:%M:%S'  
