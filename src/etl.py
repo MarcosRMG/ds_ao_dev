@@ -83,7 +83,7 @@ class HmMensJeans:
         --> Collect product information in collor and composition level
         '''
         df_pattern = pd.DataFrame(columns=['Art. No.', 'Composition', 'Fit', 'Size'])
-
+        # Job 1
         for code in self._product_base['product_id']:
             # URL composition and request
             url = f"https://www2.hm.com/en_us/productpage.{code}.html"
@@ -105,7 +105,7 @@ class HmMensJeans:
 
             df_color = pd.DataFrame({'product_id': product_id, 'product_color': product_color})
 
-            #------------------------------Product Details---------------------------
+            #------------------------------Product Details Job 2---------------------
             # Get composition information
             for code in df_color['product_id']:
                 url = (f"https://www2.hm.com/en_us/productpage.{code}.html")
@@ -148,13 +148,19 @@ class HmMensJeans:
                 df_composition = df_composition[~df_composition['composition'].str.contains('Pocket lining')]
                 df_composition = df_composition[~df_composition['composition'].str.contains('Lining')]
                 
-                #------------------------------SKU Product---------------------------
-                df_sku = pd.merge(df_composition, df_color, how='left', on='product_id')
+                #------------------------------Product details-----------------------
+                self._product_details = pd.merge(df_composition, df_color, how='left', on='product_id')
+                self._product_details['scrapy_datetime'] = datetime.now().strftime('%Y-%m-%d')
+
+                #------------------------------Clean data Job 3----------------------
+                self.data_cleaning()
                 
+                #------------------------------Data Store Job 5----------------------
+                self.database()
                 #------------------------------All products--------------------------
-                self._product_details = pd.concat([self._product_details, df_sku], axis=0).reset_index(drop=True)
-                self._product_details.drop_duplicates(inplace=True)
-        self._product_details['scrapy_datetime'] = datetime.now().strftime('%Y-%m-%d')
+                #self._product_details = pd.concat([self._product_details, df_sku], axis=0).reset_index(drop=True)
+                #self._product_details.drop_duplicates(inplace=True)
+                
 
         # Event logging
         self.loggin('info', 'Data collection product details done')
@@ -183,7 +189,10 @@ class HmMensJeans:
         self._product_details['size_number'] = self._product_details['size'].apply(lambda x: re.search('(\d{3})cm', x).group(1) if pd.notnull(x) else x)
 
         # size model
-        self._product_details['size_model'] = self._product_details['size'].apply(lambda x: re.search('\d{2}/\d{2}', x).group(0) if pd.notnull(x) else x)
+        try:
+            self._product_details['size_model'] = self._product_details['size'].apply(lambda x: re.search('\d{2}/\d{2}', x).group(0) if pd.notnull(x) else x) 
+        except:
+            self._product_details['size_model'] = self._product_details['size'].apply(lambda x: re.search('\d{2}$|\w$', x).group(0) if pd.notnull(x) else x)
 
         # Composition 
         df_composition = self._product_details['composition'].str.split(',', expand=True).reset_index(drop=True)
@@ -193,8 +202,10 @@ class HmMensJeans:
         self._product_details['cotton'] = df_composition[0]
 
         #--------------------------spandex---------------------------
-        self._product_details['spandex'] = df_composition[1]
-        self._product_details['spandex']
+        try:
+            self._product_details['spandex'] = df_composition[1]
+        except:
+            self._product_details['spandex'] = None
 
         #Composition with only numbers
         self._product_details['cotton'] = self._product_details['cotton'].apply(lambda x: float(re.search('\d+', x).group(0)) / 100 if pd.notnull(x) else x)
@@ -214,17 +225,19 @@ class HmMensJeans:
         :param query: SQL command to be executed
         :param database: Database to manipulate
         '''
-        conn = sqlite3.connect(self._path + self._database)
-        cursor = conn.execute(query)
-        conn.commit()
-        conn.close()
+        con = sqlite3.connect(self._path + self._database)
+        cur = con.cursor()
+        cur.execute(query)
+        con.commit()
+        con.close()
 
     
-    def database(self):
+    def database(self, table_name='mens_jeans'):
         '''
         --> Store informaiton on sqlite
 
         :param database: Database to manipulate
+        :param table_name: The name of a table
         '''
         # Reorder columns
         df_store = self._product_details[['product_id', 'name', 'price', 'product_color', 'fit', 'size_number', 'size_model',
@@ -237,9 +250,9 @@ class HmMensJeans:
         # Create a database and table
         if not exists(self._path + self._database):
               # Schema
-            query_showroom = '''    
-                CREATE TABLE mens_jeans (
-                    product_id       INTERGER PRIMARY KEY,
+            query_showroom = f'''    
+                CREATE TABLE {table_name} (
+                    product_id       TEXT PRIMARY KEY,
                     name             TEXT,
                     price            REAL,
                     product_color    TEXT,
@@ -253,11 +266,25 @@ class HmMensJeans:
             '''
             self.query_db(query_showroom)
 
-        # Data insert
-        df_store.to_sql(name='means_jeans', con=conn, if_exists='replace', index=False)
-
-        # Loggin
-        self.loggin('info', 'Data storing done')
+        # Job 4
+        product_id = df_store['product_id']
+        price = df_store['price']
+        check_code = f'SELECT product_id as pi FROM means_jeans where pi = "{product_id}";'
+        check_price = f'SELECT product_id as pi FROM means_jeans where pi = "{product_id}" and price = {price};'
+        
+        if pd.read_sql(check_code, conn).empty:
+            # Insert new product
+            df_store.to_sql(name='means_jeans', con=conn, if_exists='append', index=False)
+            # Loggin
+            self.loggin('info', 'Data storing done')
+        elif pd.read_sql(check_price, conn).empty:
+            # Update product information
+            query_update = f'UPDATE {table_name} SET price = {price} WHERE product_id = {product_id};'
+            self.query_db(query_update)
+            # Loggin
+            self.loggin('info', 'Data storing done')
+        else:
+            self.loggin('info', 'The product already exists and the price has not changed')
 
 
     def loggin(self, severity_level=str, message=str):
