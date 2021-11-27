@@ -1,5 +1,5 @@
-# Benchmarking of American Men's Jeans 
-![alt_text](img/web_scraping.jpeg)
+# Benchmarking USA men's jeans prices 
+![alt_text](img/jeans.jpeg)
 
 ## 1 Business Challenge
 Definition of pricing strategy for entry into the American men's jeans market.
