@@ -84,7 +84,7 @@ class HmMensJeans:
         '''
         df_pattern = pd.DataFrame(columns=['Art. No.', 'Composition', 'Fit', 'Size'])
 
-        for code in self._product_base['product_id'][:2]:
+        for code in self._product_base['product_id']:
             # URL composition and request
             url = f"https://www2.hm.com/en_us/productpage.{code}.html"
 
@@ -239,22 +239,22 @@ class HmMensJeans:
               # Schema
             query_showroom = '''    
                 CREATE TABLE mens_jeans (
-                    product_id                 TEXT,
-                    name                       TEXT,
-                    price                      REAL,
-                    product_color              TEXT,
-                    fit                        TEXT,
-                    size_number                TEXT,
-                    size_model                 TEXT,
-                    cotton                     REAL,
-                    spandex                    REAL,
-                    scrapy_datetime            TEXT
+                    product_id       INTERGER PRIMARY KEY,
+                    name             TEXT,
+                    price            REAL,
+                    product_color    TEXT,
+                    fit              TEXT,
+                    size_number      INTERGER,
+                    size_model       TEXT,
+                    cotton           REAL,
+                    spandex          REAL,
+                    scrapy_datetime  TEXT
                 )
             '''
             self.query_db(query_showroom)
 
         # Data insert
-        df_store.to_sql(name='means_jeans', con=conn, if_exists='append', index=False)
+        df_store.to_sql(name='means_jeans', con=conn, if_exists='replace', index=False)
 
         # Loggin
         self.loggin('info', 'Data storing done')
