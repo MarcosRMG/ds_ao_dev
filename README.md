@@ -24,4 +24,4 @@ The collection of data from all the products available on the web page is not vi
 
 ## 7 Next Steps to Improve
 1. Use a cloud solution to execute the jobs automatically. 
-2. Change ETL architecture to asynchronous model.
+2. Change ETL architecture to asynchronous model to avoid error of maximum timed attempts.
