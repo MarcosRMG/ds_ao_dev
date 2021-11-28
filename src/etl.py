@@ -267,23 +267,28 @@ class HmMensJeans:
             self.query_db(query_showroom)
 
         # Job 4
-        product_id = df_store['product_id']
-        price = df_store['price']
-        check_code = f'SELECT product_id as pi FROM means_jeans where pi = "{product_id}";'
-        check_price = f'SELECT product_id as pi FROM means_jeans where pi = "{product_id}" and price = {price};'
+        product_id = df_store['product_id'][0]
+        price = df_store['price'][0]
+        check_code = f'SELECT * FROM {table_name} where product_id = "{product_id}";'
+        check_price = f'SELECT * FROM {table_name} where product_id = "{product_id}" and price = {price};'
         
         if pd.read_sql(check_code, conn).empty:
             # Insert new product
-            df_store.to_sql(name='means_jeans', con=conn, if_exists='append', index=False)
-            # Loggin
-            self.loggin('info', 'Data storing done')
+            try:
+                df_store.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+                # Call loggin
+                self.loggin('info', 'Data storing done')
+            except:
+                # Call loggin
+                self.loggin('info', f'{product_id} not inserted!')
         elif pd.read_sql(check_price, conn).empty:
             # Update product information
-            query_update = f'UPDATE {table_name} SET price = {price} WHERE product_id = {product_id};'
+            query_update = f'UPDATE {table_name} SET price = {price} WHERE product_id = "{product_id}";'
             self.query_db(query_update)
-            # Loggin
+            # Call Loggin
             self.loggin('info', 'Data storing done')
         else:
+            # Call loggin
             self.loggin('info', 'The product already exists and the price has not changed')
 
 
