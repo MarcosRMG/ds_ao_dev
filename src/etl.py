@@ -9,6 +9,8 @@ import sqlite3
 import math
 import re
 import logging
+from time import sleep
+import numpy as np
 
 
 class HmMensJeans:
@@ -82,9 +84,16 @@ class HmMensJeans:
         '''
         --> Collect product information in collor and composition level
         '''
+        time_to_sleep = np.arange(30, 1000, 30)
+        count = 0
         df_pattern = pd.DataFrame(columns=['Art. No.', 'Composition', 'Fit', 'Size'])
         # Job 1
         for code in self._product_base['product_id']:
+            count += 1
+            if count in time_to_sleep:
+                sleep(10.0)
+                # Call loggin
+                self.loggin('info', 'Sleep for 10 seconds')
             # URL composition and request
             url = f"https://www2.hm.com/en_us/productpage.{code}.html"
 
@@ -286,7 +295,7 @@ class HmMensJeans:
             query_update = f'UPDATE {table_name} SET price = {price} WHERE product_id = "{product_id}";'
             self.query_db(query_update)
             # Call Loggin
-            self.loggin('info', 'Data storing done')
+            self.loggin('info', 'Data updated done')
         else:
             # Call loggin
             self.loggin('info', 'The product already exists and the price has not changed')
