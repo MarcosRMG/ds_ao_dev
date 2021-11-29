@@ -13,17 +13,20 @@ Collect men's jeans prices and product details from the H&M company webpage via 
 
 ## 4 Top 3 Data Insights
 ![alt_text](img/price_distribution.png)
+<br/>
 Price distributions are approximately normal around the mean
+
+![alt_text](img/metrics.png)
+<br/>
+The average price is $26.13, with $10.40 of fluctuation. 
+
+![alt_text](img/models.png)
+<br/>
+Skinny Jeans and Slim Jeans represent 51% of the items.
 
 ## 5 H&M Data Collection
 ### 5.1 ETL Architecture Design 
 ![alt_text](img/etl_architecture.png)
-
-![alt_text](img/metrics.png)
-The average price is $26.13, with $10.40 of fluctuation. 
-
-![alt_text](img/models.png)
-Skinny Jeans and Slim Jeans represent 51% of the items.
 
 ## 6 Lessons Learned
 
