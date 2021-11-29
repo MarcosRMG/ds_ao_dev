@@ -12,17 +12,17 @@ Definition of pricing strategy for entry into the American men's jeans market.
 Collect men's jeans prices and product details from the H&M company webpage via web scraping.
 
 ## 4 Top 3 Data Insights
+### 1 Price distributions are approximately normal around the mean
 ![alt_text](img/price_distribution.png)
 <br/>
-Price distributions are approximately normal around the mean
 
+### 2 The average price is $26.13, with $10.40 of fluctuation. 
 ![alt_text](img/metrics.png)
 <br/>
-The average price is $26.13, with $10.40 of fluctuation. 
 
+### 3 Skinny Jeans and Slim Jeans represent 51% of the items.
 ![alt_text](img/models.png)
 <br/>
-Skinny Jeans and Slim Jeans represent 51% of the items.
 
 ## 5 H&M Data Collection
 ### 5.1 ETL Architecture Design 
